@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis AI Kelas XI-1 - SMAN 75</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --text: #1e293b; --danger: #ef4444; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--bg); color: var(--text); padding: 20px; 
+            -webkit-user-select: none; user-select: none; 
+        }
+        .container { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: var(--primary); font-size: 22px; margin-bottom: 5px; }
+        .sub-title { text-align: center; font-size: 14px; color: #64748b; margin-bottom: 25px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 15px; font-size: 16px; }
+        #timer-box { font-weight: bold; color: var(--danger); text-align: right; margin-bottom: 10px; display: none; }
+        .options { display: grid; gap: 10px; margin-top: 15px; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 15px; }
+        .btn-start { background: var(--primary); color: white; }
+        .option-btn { background: #f1f5f9; text-align: left; font-weight: normal; border: 1px solid #e2e8f0; }
+        .option-btn:hover { background: #e2e8f0; }
+        #wa-btn { background: #25d366; color: white; margin-top: 15px; display: none; }
+        .score-circle { font-size: 60px; color: var(--primary); font-weight: bold; margin: 20px 0; }
+        .error-msg { color: var(--danger); text-align: center; font-weight: bold; padding: 20px; display: none; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<div class="container">
+    <h1>Kuis AI di Kelas 🤖</h1>
+    <p class="sub-title">SMAN 75 Jakarta - XI-1</p>
+    
+    <div id="blocked-msg" class="error-msg">
+        ⚠️ Maaf, kamu sudah pernah mengerjakan kuis ini.<br>Satu device hanya diperbolehkan satu kali pengisian.
+    </div>
+
+    <div id="login-section">
+        <input type="password" id="pass-kelas" placeholder="Password Kelas">
+        <input type="text" id="user-name" placeholder="Nama Lengkap">
+        <button class="btn-start" onclick="startQuiz()">Masuk & Mulai Kuis</button>
+    </div>
+
+    <div id="quiz-section" style="display:none;">
+        <div id="timer-box">Waktu: <span id="time-left">20</span>s</div>
+        <p id="progress" style="font-size: 13px; color: #64748b;"></p>
+        <div id="question-container"></div>
+    </div>
+
+    <div id="result-section" style="display:none; text-align: center;">
+        <h2>Selesai!</h2>
+        <div class="score-circle" id="final-score">0</div>
+        <p id="feedback"></p>
+        <button id="wa-btn" onclick="sendToWA()">Kirim Hasil ke WhatsApp Rezky</button>
+    </div>
+</div>
+
+<script>
+    const PASSWORD_KEBUT = "75JAYA"; 
+    const WAKTU_PER_SOAL = 20; 
+    
+    // CEK APAKAH DEVICE SUDAH PERNAH MENGISI
+    window.onload = function() {
+        if (localStorage.getItem("kuis_selesai") === "true") {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('blocked-msg').style.display = 'block';
+        }
+    };
+
+    const questions = [
+        { q: "Apa peran utama AI dalam 'Personalized Learning'?", options: ["Gantikan peran guru", "Sesuaikan materi tiap siswa", "Belajar bersama-sama", "Hanya untuk absen"], correct: 1 },
+        { q: "Apa itu AI Hallucination?", options: ["AI yang bisa menyanyi", "Fakta salah yang terdengar meyakinkan", "Layar komputer berkedip", "AI yang bisa meramal"], correct: 1 },
+        { q: "Apa manfaat utama AI bagi guru?", options: ["Otomatisasi nilai tugas PG", "Gantikan interaksi sosial", "Bisa libur mengajar terus", "Menjaga keamanan sekolah"], correct: 0 },
+        { q: "Apa itu 'Digital Divide'?", options: ["Membagi layar komputer", "Kesenjangan akses teknologi", "AI yang membagi angka", "Baterai laptop habis"], correct: 1 }
+    ];
+
+    let currentIdx = 0; let score = 0; let userName = ""; let timer; let timeLeft;
+
+    function startQuiz() {
+        const inputPass = document.getElementById('pass-kelas').value;
+        userName = document.getElementById('user-name').value;
+
+        if(inputPass !== PASSWORD_KEBUT) return alert("Password Salah!");
+        if(!userName) return alert("Nama jangan dikosongkan!");
+
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('quiz-section').style.display = 'block';
+        document.getElementById('timer-box').style.display = 'block';
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        clearInterval(timer);
+        timeLeft = WAKTU_PER_SOAL;
+        document.getElementById('time-left').innerText = timeLeft;
+        const qData = questions[currentIdx];
+        document.getElementById('progress').innerText = `Soal ${currentIdx + 1} dari ${questions.length}`;
+        document.getElementById('question-container').innerHTML = `
+            <h3>${qData.q}</h3>
+            <div class="options">
+                ${qData.options.map((opt, i) => `<button class="option-btn" onclick="checkAns(${i})">${opt}</button>`).join('')}
+            </div>
+        `;
+        timer = setInterval(() => {
+            timeLeft--;
+            document.getElementById('time-left').innerText = timeLeft;
+            if(timeLeft <= 0) { clearInterval(timer); checkAns(-1); }
+        }, 1000);
+    }
+
+    function checkAns(idx) {
+        clearInterval(timer);
+        const btns = document.querySelectorAll('.option-btn');
+        btns.forEach(b => b.disabled = true);
+
+        if(idx !== -1 && idx === questions[currentIdx].correct) {
+            btns[idx].style.background = "#bbf7d0";
+            score++;
+        } else if (idx !== -1) {
+            btns[idx].style.background = "#fecaca";
+            btns[questions[currentIdx].correct].style.background = "#bbf7d0";
+        }
+        
+        setTimeout(() => {
+            currentIdx++;
+            if(currentIdx < questions.length) loadQuestion();
+            else showResult();
+        }, 1000);
+    }
+
+    function showResult() {
+        // SIMPAN STATUS SELESAI DI DEVICE
+        localStorage.setItem("kuis_selesai", "true");
+        localStorage.setItem("skor_akhir", score); // Opsional: simpan skor juga
+
+        document.getElementById('quiz-section').style.display = 'none';
+        document.getElementById('result-section').style.display = 'block';
+        const finalVal = Math.round((score/questions.length)*100);
+        document.getElementById('final-score').innerText = finalVal;
+        document.getElementById('feedback').innerText = finalVal >= 70 ? "Keren! Kamu Literat AI." : "Belajar lagi ya!";
+        document.getElementById('wa-btn').style.display = 'block';
+    }
+
+    function sendToWA() {
+        const finalVal = document.getElementById('final-score').innerText;
+        const phone = "6283852043537"; 
+        const text = `*LAPORAN KUIS AI XI-1*\n\nNama: *${userName}*\nSkor: *${finalVal}/100*`;
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+    }
+</script>
+</body>
+</html>
+  
